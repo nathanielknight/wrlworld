@@ -3,8 +3,7 @@ declare function seedNoise(seed: number): void;
 
 type Point = [number, number];
 
-class NoiseMap2D {
-    private seed: number;
+class ArrayMap2D {
     public map: Float32Array;
     readonly xsize: number;
     readonly ysize: number;
@@ -14,18 +13,8 @@ class NoiseMap2D {
         this.xsize = xsize;
         this.ysize = ysize;
         this.mapsize = xsize * ysize;
-        this.seed = Math.random();
         this.map = new Float32Array(this.mapsize);
 
-        this.genMap();
-    }
-
-    private genMap() {
-        seedNoise(this.seed);
-        for (let idx = 0; idx < this.mapsize; idx++) {
-            let [i, j] = this.coordsOf(idx);
-            this.map[idx] = getNoise(i, j);
-        }
     }
 
     idxOf(i: number, j: number): number {
@@ -37,9 +26,19 @@ class NoiseMap2D {
         let j = Math.floor(idx / this.xsize);
         return [i, j];
     }
+
+    get(i: number, j: number): number {
+        let idx = this.idxOf(i, j);
+        return this.map[idx];
+    }
+
+    set(i: number, j: number, v: number): void {
+        let idx = this.idxOf(i, j);
+        this.map[idx] = v;
+    }
 }
 
-function testNoiseMap2D(): void {
+function testArrayMap2D(): void {
     function assert(p: boolean, m?: string): void {
         if (!p) {
             throw new Error(m);
@@ -56,12 +55,12 @@ function testNoiseMap2D(): void {
     }
 
     test("test mapsize", () => {
-        let m = new NoiseMap2D(10, 10);
+        let m = new ArrayMap2D(10, 10);
         assert(m.mapsize === 100, "expected 10 by 10 map to have size 100");
     });
 
     test("test indices", () => {
-        let m = new NoiseMap2D(3, 5);
+        let m = new ArrayMap2D(3, 5);
         let cases: [[number, number], number][] = [
             [[0, 0], 0],
             [[2, 4], 14],
