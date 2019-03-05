@@ -37,6 +37,25 @@ class ArrayMap2D {
         let idx = this.idxOf(i, j);
         this.map[idx] = v;
     }
+
+    public fcombine(fn: (a: number, b: number) => number, other: ArrayMap2D): ArrayMap2D {
+        assert(this.xsize === other.xsize, "X-sizes of ArrayMap2D must match");
+        assert(this.ysize === other.ysize, "Y-sizes of ArrayMap2D must match");
+
+        let result = new ArrayMap2D(this.xsize, this.ysize);
+
+        for (let idx = 0; idx < this.size; idx++) {
+            result.map[idx] = fn(this.map[idx], other.map[idx]);
+        }
+        return result;
+    }
+
+    public fupdate(fn: (a: number) => number): void {
+        for (let idx = 0; idx < this.size; idx++) {
+            this.map[idx] = fn(this.map[idx]);
+        }
+    }
+
 }
 
 function testArrayMap2D(): void {

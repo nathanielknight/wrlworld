@@ -19,18 +19,6 @@ class NoiseMap2D extends ArrayMap2D {
             this.map[idx] = getNoise(i * this.scale, j * this.scale);
         }
     }
-
-    public fcombine(fn: (a: number, b: number) => number, other: ArrayMap2D): ArrayMap2D {
-        assert(this.xsize === other.xsize, "X-sizes of ArrayMap2D must match");
-        assert(this.ysize === other.ysize, "Y-sizes of ArrayMap2D must match");
-
-        let result = new ArrayMap2D(this.xsize, this.ysize);
-
-        for (let idx = 0; idx < this.size; idx++) {
-            result.map[idx] = fn(this.map[idx], other.map[idx]);
-        }
-        return result;
-    }
 }
 
 
