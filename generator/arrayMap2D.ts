@@ -1,19 +1,16 @@
-declare function getNoise(x: number, y: number): number;
-declare function seedNoise(seed: number): void;
-
 type Point = [number, number];
 
 class ArrayMap2D {
     public map: Float32Array;
     readonly xsize: number;
     readonly ysize: number;
-    readonly mapsize: number;
+    readonly size: number;
 
     constructor(xsize: number, ysize: number) {
         this.xsize = xsize;
         this.ysize = ysize;
-        this.mapsize = xsize * ysize;
-        this.map = new Float32Array(this.mapsize);
+        this.size = xsize * ysize;
+        this.map = new Float32Array(this.size);
 
     }
 
@@ -32,6 +29,10 @@ class ArrayMap2D {
         return this.map[idx];
     }
 
+    getIdx(idx: number): number {
+        return this.map[idx];
+    }
+
     set(i: number, j: number, v: number): void {
         let idx = this.idxOf(i, j);
         this.map[idx] = v;
@@ -39,24 +40,10 @@ class ArrayMap2D {
 }
 
 function testArrayMap2D(): void {
-    function assert(p: boolean, m?: string): void {
-        if (!p) {
-            throw new Error(m);
-        }
-    }
-    function test(name: string, p: () => void): void {
-        try {
-            p();
-        } catch (e) {
-            console.error(`${name}: ${e}`);
-            return;
-        }
-        console.log(`${name}: passed`);
-    }
 
     test("test mapsize", () => {
         let m = new ArrayMap2D(10, 10);
-        assert(m.mapsize === 100, "expected 10 by 10 map to have size 100");
+        assert(m.size === 100, "expected 10 by 10 map to have size 100");
     });
 
     test("test indices", () => {
