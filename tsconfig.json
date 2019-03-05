@@ -5,7 +5,7 @@
     "module": "es6",
     "declaration": false,
     "sourceMap": false,
-    "rootDir": "./tssrc",
+    "rootDir": "./generator",
     "lib": [
       "dom",
       "es6",
