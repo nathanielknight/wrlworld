@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf8" />
+</head>
+
+<body>
+    <canvas id="testcanvas" width=256 height=256 style="image-rendering: crisp-edges;"></canvas>
+    <script src="./perlin.js" type="module"></script>
+    <script>
+        function assert(p, m) {
+            if (!p) {
+                throw new Error(m);
+            }
+        }
+
+        function test(n, f) {
+            try {
+                f()
+            } catch (e) {
+                console.error(`${n}: ${e}`);
+                return;
+            }
+            console.log(`${n}: passed`);
+        }
+
+        let xs = [];
+    </script>
+    <script type="module">
+        import { Perlin } from "./perlin.js";
+
+        test("Perlin can be initialized", () => {
+            let p = new Perlin(10, 10);
+        });
+
+        // Draw a map
+        let cnv = document.getElementById("testcanvas");
+        let ctx = cnv.getContext("2d");
+        let p = new Perlin(16, 16);
+        let imdata = ctx.getImageData(0, 0, 256, 256);
+        let data = imdata.data;
+
+        for (var i = 0; i < 256; i++) {
+            for (var j = 0; j < 256; j++) {
+                let idx = 4 * (i + 256 * j);
+                let v = p.get(i / 16, j / 16);
+                if (v < 0) {
+                    data[idx + 2] = 255;
+                } else if (v > 0 && v < 0.8) {
+                    data[idx + 1] = 255;
+                } else {
+                    data[idx] = 255;
+                }
+                data[idx + 3] = 255;
+            }
+        }
+
+        ctx.putImageData(imdata, 0, 0);
+
+    </script>
+</body>
+
+</html>
