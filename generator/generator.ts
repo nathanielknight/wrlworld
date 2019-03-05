@@ -6,7 +6,7 @@ class Generator {
     private elevation: ArrayMap2D;
     private size: number;
     constructor() {
-        this.elevation = new NoiseMap2D(XSIZE, YSIZE, 0.014);
+        this.elevation = new NoiseMap2D(XSIZE, YSIZE, 0.019);
         this.size = this.elevation.size;
     }
 
@@ -24,6 +24,9 @@ class Generator {
 
     private rgba(idx: number): [number, number, number, number] {
         let v = this.elevation.getIdx(idx);
+        if (v > 0.6) {
+            return [50, 50, 50, 255];
+        }
         let b = v < 0 ? 180 : 0;
         let g = v >= 0 ? 180 : 0;
         return [0, g, b, 255];
