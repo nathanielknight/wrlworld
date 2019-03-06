@@ -1,0 +1,6 @@
+(task
+ "get-deps"
+ "Fetch the noise generator source code"
+ (exec
+  curl "https://raw.githubusercontent.com/josephg/noisejs/master/perlin.js"
+  -o "generator/perlin.js"))
