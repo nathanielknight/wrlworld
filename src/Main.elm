@@ -4,7 +4,9 @@ import Array
 import Browser
 import Dict
 import Html exposing (div, pre, span, text)
-import Html.Attributes exposing (style)
+import Html.Attributes exposing (style, tabindex)
+import Html.Events
+import Json.Decode as Json
 import List
 import Set
 
@@ -17,7 +19,7 @@ import Set
 main =
     Browser.element
         { init = init
-        , update = update
+        , update = boringUpdate
         , subscriptions = subscriptions
         , view = view
         }
@@ -25,28 +27,56 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { worldMap = Dict.empty, wind = { speed = 0, direction = N }, vessel = { position = ( 64, 64 ), mode = Boat } }, Cmd.none )
+    ( { worldMap = exampleMap
+      , wind = { speed = 0, direction = N }
+      , vessel =
+            { position = ( mapSize // 2, mapSize // 2 )
+            , mode = Wagon
+            }
+      }
+    , Cmd.none
+    )
 
 
 type alias Model =
-    { worldMap : CellMap
+    { worldMap : TileMap
     , wind : Wind
     , vessel : Vessel
     }
 
 
 type Msg
-    = None
+    = Move Direction
+    | Transform VesselMode
+    | Pass
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update _ m =
-    ( m, Cmd.none )
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        Transform md ->
+            tryTransform md model
+
+        _ ->
+            model
+
+
+boringUpdate : Msg -> Model -> ( Model, Cmd Msg )
+boringUpdate msg model =
+    ( update msg model, Cmd.none )
 
 
 view : Model -> Html.Html Msg
-view _ =
-    div [ style "font-family" "monospace" ] [ renderCells exampleMap ]
+view m =
+    let
+        worldCells =
+            Dict.map (\k v -> toCell v) m.worldMap
+
+        viewCells =
+            Dict.insert m.vessel.position (vesselCell m.vessel) worldCells
+                |> viewAround m.vessel.position
+    in
+    div [ style "font-family" "monospace", keyboardControls, tabindex 0 ] [ renderCells viewCells ]
 
 
 subscriptions : Model -> Sub Msg
@@ -63,12 +93,14 @@ mapSize =
     256
 
 
-
---- It's actually 64, but I zero indexed so ... yeah
-
-
 viewportSize =
-    64
+    31
+
+
+{-| Leave one cell in the centre for the player
+-}
+viewportRange =
+    15
 
 
 type TileKind
@@ -81,8 +113,12 @@ type alias Point =
     ( Int, Int )
 
 
-type alias CellMap =
+type alias TileMap =
     Dict.Dict Point TileKind
+
+
+type alias CellMap =
+    Dict.Dict Point Cell
 
 
 type Direction
@@ -110,7 +146,7 @@ type alias Vessel =
     { position : Point, mode : VesselMode }
 
 
-exampleMap : CellMap
+exampleMap : TileMap
 exampleMap =
     let
         toPt idx =
@@ -127,10 +163,10 @@ exampleMap =
             Array.initialize (mapSize * mapSize) toPt
 
         ptKind ( x, y ) =
-            if (x + y) < 200 then
+            if (x + y) < 250 then
                 Sea
 
-            else if (x + y) < 400 then
+            else if (x + y) < 262 then
                 Land
 
             else
@@ -173,14 +209,76 @@ renderCell (Cell c fg bg) =
     span [ style "color" fg, style "background-color" bg ] [ text c ]
 
 
+{-| Apply a function to a Dictionary's keys
+-}
+mapKeys : (comparable -> comparable) -> Dict.Dict comparable v -> Dict.Dict comparable v
+mapKeys fn frm =
+    Dict.foldl (\k v i -> Dict.insert (fn k) v i) Dict.empty frm
 
---- Render a CellMap in the Rogue-like style. Expects Points to be in the range 0-63
+
+{-| Determine if a point is within a given distance (x and y) of another point.
+-}
+inRangeOf : Int -> Point -> Point -> Bool
+inRangeOf rng about pt =
+    let
+        ( dx, dy ) =
+            pointDistances about pt
+    in
+    (dx < rng) && (dy < rng)
 
 
-show x =
-    div [] [ text <| Debug.toString x ]
+{-| Choose a centrepoint for the screen. Allows the player to wander free near
+the edge, but be centred in the middle of the map.
+-}
+centrePoint : Point -> Point
+centrePoint p =
+    let
+        minCentre =
+            viewportRange + 1
+
+        maxCentre =
+            mapSize - (viewportRange + 1)
+
+        ( x, y ) =
+            p
+    in
+    ( clamp minCentre maxCentre x, clamp minCentre maxCentre y )
 
 
+offsets : Point -> Point
+offsets ( x, y ) =
+    let
+        maxOffset =
+            mapSize - viewportSize
+
+        minOffset =
+            0
+
+        norm =
+            clamp minOffset maxOffset
+    in
+    ( norm <| x - viewportRange, norm <| y - viewportRange )
+
+
+{-| Extract a 64 x 64 square near the given point, bounded by 0 and the map size.
+-}
+viewAround : Point -> CellMap -> CellMap
+viewAround aroundPt m =
+    let
+        centre =
+            centrePoint aroundPt
+
+        ( dx, dy ) =
+            offsets centre
+
+        normCoord ( x, y ) =
+            ( x - dx, y - dy )
+    in
+    m |> Dict.filter (\p c -> inRangeOf viewportRange centre p) |> mapKeys normCoord
+
+
+{-| Render a TileMap in the Rogue-like style (coords in [0, 64))
+-}
 renderCells : CellMap -> Html.Html Msg
 renderCells m =
     let
@@ -192,7 +290,7 @@ renderCells m =
             range viewportSize
 
         cellAt pt =
-            Dict.get pt m |> (Maybe.map toCell >> Maybe.withDefault emptyCell)
+            Dict.get pt m |> Maybe.withDefault emptyCell
 
         row y =
             Array.initialize viewportSize (\x -> cellAt ( x, y ))
@@ -207,9 +305,119 @@ renderCells m =
     pre [] <| List.intersperse (text "\n") rows
 
 
+vesselCell : Vessel -> Cell
+vesselCell v =
+    case v.mode of
+        Wagon ->
+            Cell "w" "brown" "green"
+
+        Boat ->
+            Cell "b" "brown" "blue"
+
+        Baloon ->
+            Cell "B" "red" "azure"
+
+
 
 ----------------------------------------------------------------
--- Range helpers
+-- Input transformer
+
+
+mapKeyCode : Int -> Msg
+mapKeyCode kc =
+    case kc of
+        74 ->
+            Transform Boat
+
+        75 ->
+            Transform Baloon
+
+        76 ->
+            Transform Wagon
+
+        _ ->
+            Debug.log (Debug.toString kc) Pass
+
+
+keyboardControls : Html.Attribute Msg
+keyboardControls =
+    Html.Events.on "keydown" (Json.map mapKeyCode Html.Events.keyCode)
+
+
+
+----------------------------------------------------------------
+-- Model properties
+
+
+neighborTilesOf : Point -> Model -> List TileKind
+neighborTilesOf pt m =
+    let
+        neighborPoints =
+            List.map (\d -> pointAdd pt d) directionChanges
+    in
+    List.map (\p -> Dict.get p m.worldMap |> Maybe.withDefault Sea) neighborPoints
+
+
+
+----------------------------------------------------------------
+-- Handle player moves
+
+
+canBoat : Model -> Bool
+canBoat m =
+    let
+        playerTile =
+            Dict.get m.vessel.position m.worldMap
+    in
+    case playerTile of
+        Just Sea ->
+            True
+
+        _ ->
+            False
+
+
+canWagon : Model -> Bool
+canWagon m =
+    let
+        nts =
+            neighborTilesOf m.vessel.position m
+    in
+    List.member Land nts
+
+
+canTransform : VesselMode -> Model -> Bool
+canTransform mode model =
+    case mode of
+        Boat ->
+            canBoat model
+
+        Wagon ->
+            canWagon model
+
+        Baloon ->
+            True
+
+
+tryTransform : VesselMode -> Model -> Model
+tryTransform toMode model =
+    let
+        vessel =
+            model.vessel
+
+        newVessel =
+            if canTransform toMode model then
+                { vessel | mode = toMode }
+
+            else
+                vessel
+    in
+    { model | vessel = newVessel }
+
+
+
+----------------------------------------------------------------
+-- Misc helpers
 
 
 range : Int -> Array.Array Int
@@ -217,16 +425,55 @@ range n =
     Array.initialize n identity
 
 
-grid : Int -> Array.Array Point
-grid n =
-    let
-        ys =
-            range n
+show x =
+    div [] [ text <| Debug.toString x ]
 
-        xRow y =
-            Array.initialize n (\x -> ( x, y ))
 
-        rows =
-            Array.map xRow ys
-    in
-    Array.foldl Array.append Array.empty rows
+pointDistances : Point -> Point -> Point
+pointDistances ( x, y ) ( a, b ) =
+    ( abs (x - a), abs (y - b) )
+
+
+pointAdd ( x, y ) ( a, b ) =
+    ( a + x, b + y )
+
+
+directionChange : Direction -> Point
+directionChange d =
+    case d of
+        N ->
+            ( 0, 1 )
+
+        NE ->
+            ( 1, 1 )
+
+        E ->
+            ( 1, 0 )
+
+        SE ->
+            ( 1, -1 )
+
+        S ->
+            ( 0, -1 )
+
+        SW ->
+            ( -1, -1 )
+
+        W ->
+            ( -1, 0 )
+
+        NW ->
+            ( -1, 1 )
+
+
+directionChanges : List Point
+directionChanges =
+    [ ( 0, 1 )
+    , ( 1, 1 )
+    , ( 1, 0 )
+    , ( 1, -1 )
+    , ( 0, -1 )
+    , ( -1, -1 )
+    , ( -1, 0 )
+    , ( -1, 1 )
+    ]
