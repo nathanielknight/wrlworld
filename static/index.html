@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf8" />
+</head>
+
+<body>
+    <canvas id="testcanvas" width=256 height=256 style="image-rendering: crisp-edges;"></canvas>
+    <script src="./perlin.js"></script>
+    <script>
+        function getNoise(x, y) {
+            return noise.simplex2(x, y);
+        }
+        function seedNoise(n) {
+            noise.seed(n);
+        }
+    </script>
+    <script src="./util.js"></script>
+    <script src="./arrayMap2D.js"></script>
+    <script src="./noiseMap2D.js"></script>
+    <script src="./generator.js"></script>
+    <script>
+        testGenerator();
+    </script>
+
+</html>

@@ -1,6 +1,20 @@
+; -*- mode: scheme -*-
+
 (task
- "get-deps"
+ "get-perlin"
  "Fetch the noise generator source code"
  (exec
   curl "https://raw.githubusercontent.com/josephg/noisejs/master/perlin.js"
-  -o "generator/perlin.js"))
+  -o "static/perlin.js"))
+
+(task
+ "build"
+ "Compile the app."
+ (log "Starting build...")
+ (empty-dir "build")
+ (log "  Copying static files")
+ (rec-copy "./static" "./build")
+ (log "  Building TypeScript")
+ (exec tsc --outDir "./build")
+ (log "  Building Elm")
+ (log "done."))
