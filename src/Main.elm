@@ -57,6 +57,9 @@ update msg model =
         Transform md ->
             tryTransform md model
 
+        Move d ->
+            tryMove d model
+
         _ ->
             model
 
@@ -315,7 +318,7 @@ vesselCell v =
             Cell "b" "brown" "blue"
 
         Baloon ->
-            Cell "B" "red" "azure"
+            Cell "B" "red" "skyblue "
 
 
 
@@ -326,6 +329,7 @@ vesselCell v =
 mapKeyCode : Int -> Msg
 mapKeyCode kc =
     case kc of
+        -- j, k, and l transform
         74 ->
             Transform Boat
 
@@ -335,6 +339,32 @@ mapKeyCode kc =
         76 ->
             Transform Wagon
 
+        -- Num-pad map to directions (num-lock off)
+        38 ->
+            Move N
+
+        33 ->
+            Move NE
+
+        39 ->
+            Move E
+
+        34 ->
+            Move SE
+
+        40 ->
+            Move S
+
+        35 ->
+            Move SW
+
+        37 ->
+            Move W
+
+        36 ->
+            Move NW
+
+        -- otherwise, do nothing
         _ ->
             Debug.log (Debug.toString kc) Pass
 
@@ -354,8 +384,19 @@ neighborTilesOf pt m =
     let
         neighborPoints =
             List.map (\d -> pointAdd pt d) directionChanges
+
+        maybeTiles =
+            List.map (\p -> Dict.get p m.worldMap) neighborPoints
+
+        addMaybeTile mt l =
+            case mt of
+                Nothing ->
+                    l
+
+                Just t ->
+                    t :: l
     in
-    List.map (\p -> Dict.get p m.worldMap |> Maybe.withDefault Sea) neighborPoints
+    List.foldl addMaybeTile [] maybeTiles
 
 
 
@@ -413,6 +454,57 @@ tryTransform toMode model =
                 vessel
     in
     { model | vessel = newVessel }
+
+
+canMoveTo : Point -> Model -> Bool
+canMoveTo pos model =
+    let
+        vm =
+            model.vessel.mode
+
+        targetTile =
+            Dict.get pos model.worldMap
+    in
+    case targetTile of
+        Nothing ->
+            False
+
+        Just Sea ->
+            vm == Boat || vm == Baloon || List.member Land (neighborTilesOf pos model)
+
+        Just Land ->
+            vm /= Boat
+
+        Just Mountain ->
+            vm == Baloon
+
+
+moveTo : Point -> Model -> Model
+moveTo p m =
+    let
+        vessel =
+            m.vessel
+
+        newVessel =
+            { vessel | position = p }
+    in
+    { m | vessel = newVessel }
+
+
+tryMove : Direction -> Model -> Model
+tryMove d m =
+    let
+        targetPos =
+            pointAdd m.vessel.position (directionChange d)
+
+        newPos =
+            if canMoveTo targetPos m then
+                targetPos
+
+            else
+                m.vessel.position
+    in
+    moveTo newPos m
 
 
 
