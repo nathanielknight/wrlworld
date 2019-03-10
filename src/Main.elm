@@ -335,13 +335,13 @@ vesselCell : Vessel -> Cell
 vesselCell v =
     case v.mode of
         Wagon ->
-            Cell "w" "brown" "green"
+            Cell "w" "brown" "black"
 
         Boat ->
-            Cell "b" "brown" "blue"
+            Cell "b" "brown" "black"
 
         Baloon ->
-            Cell "B" "red" "skyblue "
+            Cell "B" "white" "black "
 
 
 insertVesselCell : Model -> CellMap -> CellMap
