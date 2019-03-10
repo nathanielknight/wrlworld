@@ -76,11 +76,7 @@ update msg model =
 
 boringUpdate : Msg -> Model -> ( Model, Cmd Msg )
 boringUpdate msg model =
-    let
-        newModel =
-            update msg model |> upkeep
-    in
-    ( newModel, Cmd.none )
+    ( update msg model, Cmd.none )
 
 
 view : Model -> Html.Html Msg
@@ -192,20 +188,6 @@ exampleMap =
         |> Array.map (\p -> ( p, ptKind p ))
         |> Array.toList
         |> Dict.fromList
-
-
-{-| Things that should happen every tick
--}
-upkeep : Model -> Model
-upkeep m =
-    let
-        vessel =
-            m.vessel
-
-        newVessl =
-            { vessel | charge = clamp 0 5 (vessel.charge + 0.333) }
-    in
-    { m | vessel = newVessl }
 
 
 
@@ -363,7 +345,7 @@ vesselStats m =
                 |> (*) 4.0
                 |> floor
     in
-    Html.p [] [Html.text <| String.concat [ "Baloon Charge: ", displayCharge, displayPartial ]]
+    Html.p [] [ Html.text <| String.concat [ "Engine Charge: ", displayCharge, displayPartial ] ]
 
 
 windStats : Model -> Html.Html Msg
@@ -383,12 +365,12 @@ windStats m =
                 W ->
                     "◀"
     in
-    Html.p [] [ Html.text <| String.concat ["Wind Direction: ", indicator ]]
+    Html.p [] [ Html.text <| String.concat [ "Wind Direction: ", indicator ] ]
 
 
 dashboard : Model -> Html.Html Msg
 dashboard m =
-    div []
+    div [ Html.Attributes.id "dashboard" ]
         [ vesselStats m
         , windStats m
         ]
@@ -574,37 +556,74 @@ moveTo p m =
     { m | vessel = newVessel }
 
 
-moveUpkeep : VesselMode -> Model -> Model
-moveUpkeep mode model =
-    case mode of
+moveCost : Direction -> Model -> Float
+moveCost d m =
+    case m.vessel.mode of
         Baloon ->
-            let
-                vessel =
-                    model.vessel
+            if d == m.wind then
+                0.0
 
-                newVessel =
-                    { vessel | charge = vessel.charge - 1 }
-            in
-            { model | vessel = newVessel }
+            else
+                1.0
 
-        _ ->
-            model
+        Boat ->
+            if d == oppositeWind m.wind then
+                1.0
+
+            else
+                0.0
+
+        Wagon ->
+            0.0
+
+
+deductCharge : Float -> Model -> Model
+deductCharge c m =
+    let
+        vessel =
+            m.vessel
+
+        newCharge =
+            clamp 0 5 (vessel.charge - c)
+
+        newVessel =
+            { vessel | charge = newCharge }
+    in
+    { m | vessel = newVessel }
+
+
+moveAndTrackCharge : Direction -> Model -> Model
+moveAndTrackCharge d m =
+    let
+        deltaCharge =
+            moveCost d m - 0.3
+
+        newPos =
+            targetPos d m
+    in
+    m |> moveTo newPos |> deductCharge deltaCharge
 
 
 tryMove : Direction -> Model -> Model
 tryMove d m =
     let
-        targetPos =
-            pointAdd m.vessel.position (directionChange d)
+        targetCost =
+            moveCost d m
 
-        newPos =
-            if canMoveTo targetPos m then
-                targetPos
+        t =
+            targetPos d m
 
-            else
-                m.vessel.position
+        terrainOk =
+            canMoveTo t m
+
+        chargeOk =
+            m.vessel.charge >= targetCost
     in
-    m |> moveTo newPos |> moveUpkeep m.vessel.mode
+    if terrainOk && chargeOk then
+        moveAndTrackCharge d m
+
+    else
+        m
 
 
 
@@ -653,6 +672,27 @@ directionChanges =
     , ( 0, -1 )
     , ( -1, 0 )
     ]
+
+
+targetPos : Direction -> Model -> Point
+targetPos d m =
+    pointAdd m.vessel.position (directionChange d)
+
+
+oppositeWind : Wind -> Wind
+oppositeWind w =
+    case w of
+        N ->
+            S
+
+        E ->
+            W
+
+        W ->
+            E
+
+        S ->
+            N
 
 
 
