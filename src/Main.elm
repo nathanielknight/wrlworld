@@ -364,6 +364,31 @@ mapKeyCode kc =
         36 ->
             Move NW
 
+        -- Also WEDCXZAQ for directions
+        87 ->
+            Move N
+
+        69 ->
+            Move NE
+
+        68 ->
+            Move E
+
+        67 ->
+            Move SE
+
+        88 ->
+            Move S
+
+        90 ->
+            Move SW
+
+        65 ->
+            Move W
+
+        81 ->
+            Move NW
+
         -- otherwise, do nothing
         _ ->
             Debug.log (Debug.toString kc) Pass
