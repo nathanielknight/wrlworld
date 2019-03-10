@@ -394,16 +394,16 @@ windStats m =
         indicator =
             case m.wind of
                 N ->
-                    "▲"
+                    "N"
 
                 S ->
-                    "▼"
+                    "S"
 
                 E ->
-                    "▶"
+                    "E"
 
                 W ->
-                    "◀"
+                    "W"
     in
     Html.p [] [ Html.text <| String.concat [ "Wind Direction: ", indicator ] ]
 
