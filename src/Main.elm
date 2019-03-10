@@ -97,15 +97,17 @@ view m =
         worldCells =
             Dict.map (\k v -> toCell v) m.worldMap
 
-        viewCells = worldCells
-            |> insertVesselCell m
-            |> insertDestinationCell m
-            |> viewAround m.vessel.position
+        viewCells =
+            worldCells
+                |> insertVesselCell m
+                |> insertDestinationCell m
+                |> viewAround m.vessel.position
     in
-    div []
-        [ div [ style "font-family" "monospace", keyboardControls, tabindex 0 ] [ renderCells viewCells ]
-        , div [ style "font-famliy" "cursive" ] [ dashboard m ]
+    div [ Html.Attributes.class "app" ]
+        [ div [ Html.Attributes.class "map", style "font-family" "monospace", keyboardControls, tabindex 0 ] [ renderCells viewCells ]
+        , div [ Html.Attributes.class "dashboard", style "font-famliy" "cursive" ] [ dashboard m ]
         ]
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -122,13 +124,13 @@ mapSize =
 
 
 viewportSize =
-    31
+    41
 
 
 {-| Leave one cell in the centre for the player
 -}
 viewportRange =
-    15
+    20
 
 
 type TileKind
@@ -341,24 +343,31 @@ vesselCell v =
         Baloon ->
             Cell "B" "red" "skyblue "
 
+
 insertVesselCell : Model -> CellMap -> CellMap
 insertVesselCell mod map =
     let
-        pos = mod.vessel.position
-        cell = vesselCell mod.vessel
+        pos =
+            mod.vessel.position
+
+        cell =
+            vesselCell mod.vessel
     in
     Dict.insert pos cell map
 
 
 destinationCell : Cell
-destinationCell = Cell "#" "gold" "black"
+destinationCell =
+    Cell "#" "gold" "black"
+
 
 insertDestinationCell : Model -> CellMap -> CellMap
 insertDestinationCell mod map =
     let
-        pos = mod.destination
+        pos =
+            mod.destination
     in
-        Dict.insert pos destinationCell map
+    Dict.insert pos destinationCell map
 
 
 vesselStats : Model -> Html.Html Msg
@@ -407,10 +416,14 @@ positionStats m =
 
         ( tx, ty ) =
             m.destination
-        self = Html.p [] [Html.text <| String.concat ["Vessel Region: ", pointToString (vx // 10, vy // 10)]]
-        target = Html.p [] [ Html.text <| String.concat ["Destination Region: ", pointToString (tx // 10, ty // 10)]]
+
+        self =
+            Html.p [] [ Html.text <| String.concat [ "Vessel Region: ", pointToString ( vx // 10, vy // 10 ) ] ]
+
+        target =
+            Html.p [] [ Html.text <| String.concat [ "Destination Region: ", pointToString ( tx // 10, ty // 10 ) ] ]
     in
-    div [] [self, target]
+    div [] [ self, target ]
 
 
 dashboard : Model -> Html.Html Msg
