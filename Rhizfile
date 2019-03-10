@@ -15,6 +15,19 @@
  (log "  Copying static files")
  (rec-copy "./static" "./build")
  (log "  Building TypeScript")
- (exec tsc --outDir "./build")
+ (exec powershell -Command "tsc --outDir ./build")
  (log "  Building Elm")
+ (exec powershell -Command "elm make ./src/Main.elm --output build/app.js")
+ (log "done."))
+
+(task
+ "static"
+ "Copy just the static files (for working on HTML & CSS)."
+ (rec-copy "./static" "./build"))
+
+(task
+ "publish"
+ "Push a new build to itch.io"
+ (log "Publishing build to nknight.itch.io/by-sea-land-or-air")
+ (exec butler push --if-changed build "nknight/by-sea-land-or-air:web")
  (log "done."))
