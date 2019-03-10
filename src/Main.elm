@@ -48,6 +48,7 @@ init v =
             , mode = Wagon
             , charge = 5
             }
+      , deliveries = 0
       }
     , Cmd.batch
         [ Random.generate SetWind (Random.uniform N [ S, W, E ])
@@ -61,6 +62,7 @@ type alias Model =
     , wind : Wind
     , destination : Point
     , vessel : Vessel
+    , deliveries : Int
     }
 
 
@@ -79,7 +81,7 @@ update msg model =
             ( tryTransform md model, Cmd.none )
 
         Move d ->
-            ( tryMove d model, Random.generate SetWind (changeWind model.wind) )
+            tryMove d model
 
         SetWind w ->
             ( { model | wind = w }, Cmd.none )
@@ -425,6 +427,10 @@ positionStats m =
     in
     div [] [ self, target ]
 
+deliveryStats : Model -> Html.Html Msg
+deliveryStats m =
+    Html.p [] [Html.text <| String.concat ["Deliveries: ", String.fromInt m.deliveries]]
+
 
 dashboard : Model -> Html.Html Msg
 dashboard m =
@@ -432,6 +438,7 @@ dashboard m =
         [ vesselStats m
         , windStats m
         , positionStats m
+        , deliveryStats m
         ]
 
 
@@ -663,7 +670,19 @@ moveAndTrackCharge d m =
     m |> moveTo newPos |> deductCharge deltaCharge
 
 
-tryMove : Direction -> Model -> Model
+checkDelivery : (Model, Cmd Msg) -> (Model, Cmd Msg)
+checkDelivery (m, c) =
+    let
+        vpos = m.vessel.position
+        dpos = m.destination
+    in
+    if vpos == dpos
+    then ({ m | deliveries = m.deliveries + 1}, Cmd.batch [Random.generate SetDestination (newDestinationFor vpos), c])
+    else (m, c)
+
+
+
+tryMove : Direction -> Model -> (Model, Cmd Msg)
 tryMove d m =
     let
         targetCost =
@@ -679,10 +698,10 @@ tryMove d m =
             m.vessel.charge >= targetCost
     in
     if terrainOk && chargeOk then
-        moveAndTrackCharge d m
+        (moveAndTrackCharge d m, Random.generate SetWind <| changeWind m.wind) |> checkDelivery
 
     else
-        m
+        (m, Cmd.none)
 
 
 
