@@ -37,10 +37,11 @@ init v =
                     Debug.log (Debug.toString e) exampleMap
     in
     ( { worldMap = map
-      , wind = { speed = 0, direction = N }
+      , wind = N
       , vessel =
             { position = ( mapSize // 2, mapSize // 2 )
             , mode = Wagon
+            , charge = 5
             }
       }
     , Cmd.none
@@ -75,7 +76,11 @@ update msg model =
 
 boringUpdate : Msg -> Model -> ( Model, Cmd Msg )
 boringUpdate msg model =
-    ( update msg model, Cmd.none )
+    let
+        newModel =
+            update msg model |> upkeep
+    in
+    ( newModel, Cmd.none )
 
 
 view : Model -> Html.Html Msg
@@ -88,7 +93,10 @@ view m =
             Dict.insert m.vessel.position (vesselCell m.vessel) worldCells
                 |> viewAround m.vessel.position
     in
-    div [ style "font-family" "monospace", keyboardControls, tabindex 0 ] [ renderCells viewCells ]
+    div []
+        [ div [ style "font-family" "monospace", keyboardControls, tabindex 0 ] [ renderCells viewCells ]
+        , div [ style "font-famliy" "cursive" ] [ dashboard m ]
+        ]
 
 
 subscriptions : Model -> Sub Msg
@@ -138,14 +146,10 @@ type Direction
     | E
     | S
     | W
-    | NE
-    | SE
-    | SW
-    | NW
 
 
 type alias Wind =
-    { speed : Float, direction : Direction }
+    Direction
 
 
 type VesselMode
@@ -155,7 +159,7 @@ type VesselMode
 
 
 type alias Vessel =
-    { position : Point, mode : VesselMode }
+    { position : Point, mode : VesselMode, charge : Float }
 
 
 exampleMap : TileMap
@@ -188,6 +192,20 @@ exampleMap =
         |> Array.map (\p -> ( p, ptKind p ))
         |> Array.toList
         |> Dict.fromList
+
+
+{-| Things that should happen every tick
+-}
+upkeep : Model -> Model
+upkeep m =
+    let
+        vessel =
+            m.vessel
+
+        newVessl =
+            { vessel | charge = clamp 0 5 (vessel.charge + 0.333) }
+    in
+    { m | vessel = newVessl }
 
 
 
@@ -330,6 +348,52 @@ vesselCell v =
             Cell "B" "red" "skyblue "
 
 
+vesselStats : Model -> Html.Html Msg
+vesselStats m =
+    let
+        displayCharge =
+            floor m.vessel.charge |> String.fromInt
+
+        displayPartial =
+            String.concat <| List.repeat (fractional m.vessel.charge) "*"
+
+        fractional f =
+            f
+                - (toFloat <| floor f)
+                |> (*) 4.0
+                |> floor
+    in
+    Html.p [] [Html.text <| String.concat [ "Baloon Charge: ", displayCharge, displayPartial ]]
+
+
+windStats : Model -> Html.Html Msg
+windStats m =
+    let
+        indicator =
+            case m.wind of
+                N ->
+                    "▲"
+
+                S ->
+                    "▼"
+
+                E ->
+                    "▶"
+
+                W ->
+                    "◀"
+    in
+    Html.p [] [ Html.text <| String.concat ["Wind Direction: ", indicator ]]
+
+
+dashboard : Model -> Html.Html Msg
+dashboard m =
+    div []
+        [ vesselStats m
+        , windStats m
+        ]
+
+
 
 ----------------------------------------------------------------
 -- Input transformer
@@ -352,51 +416,27 @@ mapKeyCode kc =
         38 ->
             Move N
 
-        33 ->
-            Move NE
-
         39 ->
             Move E
-
-        34 ->
-            Move SE
 
         40 ->
             Move S
 
-        35 ->
-            Move SW
-
         37 ->
             Move W
 
-        36 ->
-            Move NW
-
-        -- Also WEDCXZAQ for directions
+        -- Also WASD for directions
         87 ->
             Move N
-
-        69 ->
-            Move NE
 
         68 ->
             Move E
 
-        67 ->
-            Move SE
-
-        88 ->
+        83 ->
             Move S
-
-        90 ->
-            Move SW
 
         65 ->
             Move W
-
-        81 ->
-            Move NW
 
         -- otherwise, do nothing
         _ ->
@@ -461,6 +501,15 @@ canWagon m =
     List.member Land nts
 
 
+canBaloon : Model -> Bool
+canBaloon m =
+    let
+        charge =
+            m.vessel.charge
+    in
+    charge >= 1.0
+
+
 canTransform : VesselMode -> Model -> Bool
 canTransform mode model =
     case mode of
@@ -471,7 +520,7 @@ canTransform mode model =
             canWagon model
 
         Baloon ->
-            True
+            canBaloon model
 
 
 tryTransform : VesselMode -> Model -> Model
@@ -525,6 +574,23 @@ moveTo p m =
     { m | vessel = newVessel }
 
 
+moveUpkeep : VesselMode -> Model -> Model
+moveUpkeep mode model =
+    case mode of
+        Baloon ->
+            let
+                vessel =
+                    model.vessel
+
+                newVessel =
+                    { vessel | charge = vessel.charge - 1 }
+            in
+            { model | vessel = newVessel }
+
+        _ ->
+            model
+
+
 tryMove : Direction -> Model -> Model
 tryMove d m =
     let
@@ -538,7 +604,7 @@ tryMove d m =
             else
                 m.vessel.position
     in
-    moveTo newPos m
+    m |> moveTo newPos |> moveUpkeep m.vessel.mode
 
 
 
@@ -570,38 +636,22 @@ directionChange d =
         N ->
             ( 0, 1 )
 
-        NE ->
-            ( 1, 1 )
-
         E ->
             ( 1, 0 )
-
-        SE ->
-            ( 1, -1 )
 
         S ->
             ( 0, -1 )
 
-        SW ->
-            ( -1, -1 )
-
         W ->
             ( -1, 0 )
-
-        NW ->
-            ( -1, 1 )
 
 
 directionChanges : List Point
 directionChanges =
     [ ( 0, 1 )
-    , ( 1, 1 )
     , ( 1, 0 )
-    , ( 1, -1 )
     , ( 0, -1 )
-    , ( -1, -1 )
     , ( -1, 0 )
-    , ( -1, 1 )
     ]
 
 
@@ -669,25 +719,3 @@ decodeMap =
             Json.list decodeTile
     in
     Json.map Dict.fromList pts
-
-
-decodeFlags : Json.Value -> ( Model, Cmd msg )
-decodeFlags v =
-    let
-        map =
-            case Json.decodeValue decodeMap v of
-                Ok m ->
-                    Debug.log "Successfully parsed map" m
-
-                Err e ->
-                    Debug.log (Debug.toString e) exampleMap
-    in
-    ( { worldMap = map
-      , wind = { speed = 0, direction = N }
-      , vessel =
-            { position = ( mapSize // 2, mapSize // 2 )
-            , mode = Wagon
-            }
-      }
-    , Cmd.none
-    )
