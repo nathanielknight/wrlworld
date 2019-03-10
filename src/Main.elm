@@ -8,6 +8,7 @@ import Html.Attributes exposing (style, tabindex)
 import Html.Events
 import Json.Decode as Json
 import List
+import Random
 import Set
 
 
@@ -19,7 +20,7 @@ import Set
 main =
     Browser.element
         { init = init
-        , update = boringUpdate
+        , update = update
         , subscriptions = subscriptions
         , view = view
         }
@@ -35,22 +36,30 @@ init v =
 
                 Err e ->
                     Debug.log (Debug.toString e) exampleMap
+
+        startPos =
+            ( mapSize // 2, mapSize // 2 )
     in
     ( { worldMap = map
       , wind = N
+      , destination = ( 50, 50 )
       , vessel =
-            { position = ( mapSize // 2, mapSize // 2 )
+            { position = startPos
             , mode = Wagon
             , charge = 5
             }
       }
-    , Cmd.none
+    , Cmd.batch
+        [ Random.generate SetWind (Random.uniform N [ S, W, E ])
+        , Random.generate SetDestination (newDestinationFor startPos)
+        ]
     )
 
 
 type alias Model =
     { worldMap : TileMap
     , wind : Wind
+    , destination : Point
     , vessel : Vessel
     }
 
@@ -58,25 +67,28 @@ type alias Model =
 type Msg
     = Move Direction
     | Transform VesselMode
+    | SetWind Wind
+    | SetDestination Point
     | Pass
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Transform md ->
-            tryTransform md model
+            ( tryTransform md model, Cmd.none )
 
         Move d ->
-            tryMove d model
+            ( tryMove d model, Random.generate SetWind (changeWind model.wind) )
 
-        _ ->
-            model
+        SetWind w ->
+            ( { model | wind = w }, Cmd.none )
 
+        SetDestination p ->
+            ( { model | destination = p }, Cmd.none )
 
-boringUpdate : Msg -> Model -> ( Model, Cmd Msg )
-boringUpdate msg model =
-    ( update msg model, Cmd.none )
+        Pass ->
+            ( model, Cmd.none )
 
 
 view : Model -> Html.Html Msg
@@ -85,15 +97,15 @@ view m =
         worldCells =
             Dict.map (\k v -> toCell v) m.worldMap
 
-        viewCells =
-            Dict.insert m.vessel.position (vesselCell m.vessel) worldCells
-                |> viewAround m.vessel.position
+        viewCells = worldCells
+            |> insertVesselCell m
+            |> insertDestinationCell m
+            |> viewAround m.vessel.position
     in
     div []
         [ div [ style "font-family" "monospace", keyboardControls, tabindex 0 ] [ renderCells viewCells ]
         , div [ style "font-famliy" "cursive" ] [ dashboard m ]
         ]
-
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -329,6 +341,25 @@ vesselCell v =
         Baloon ->
             Cell "B" "red" "skyblue "
 
+insertVesselCell : Model -> CellMap -> CellMap
+insertVesselCell mod map =
+    let
+        pos = mod.vessel.position
+        cell = vesselCell mod.vessel
+    in
+    Dict.insert pos cell map
+
+
+destinationCell : Cell
+destinationCell = Cell "#" "gold" "black"
+
+insertDestinationCell : Model -> CellMap -> CellMap
+insertDestinationCell mod map =
+    let
+        pos = mod.destination
+    in
+        Dict.insert pos destinationCell map
+
 
 vesselStats : Model -> Html.Html Msg
 vesselStats m =
@@ -368,11 +399,26 @@ windStats m =
     Html.p [] [ Html.text <| String.concat [ "Wind Direction: ", indicator ] ]
 
 
+positionStats : Model -> Html.Html Msg
+positionStats m =
+    let
+        ( vx, vy ) =
+            m.vessel.position
+
+        ( tx, ty ) =
+            m.destination
+        self = Html.p [] [Html.text <| String.concat ["Vessel Region: ", pointToString (vx // 10, vy // 10)]]
+        target = Html.p [] [ Html.text <| String.concat ["Destination Region: ", pointToString (tx // 10, ty // 10)]]
+    in
+    div [] [self, target]
+
+
 dashboard : Model -> Html.Html Msg
 dashboard m =
     div [ Html.Attributes.id "dashboard" ]
         [ vesselStats m
         , windStats m
+        , positionStats m
         ]
 
 
@@ -695,6 +741,39 @@ oppositeWind w =
             N
 
 
+pointToString : Point -> String
+pointToString ( x, y ) =
+    String.concat [ String.fromInt x, ", ", String.fromInt y ]
+
+
+{-| Rotate wind clockwise
+-}
+rotWind : Wind -> Wind
+rotWind w =
+    case w of
+        N ->
+            E
+
+        E ->
+            S
+
+        S ->
+            W
+
+        W ->
+            N
+
+
+changeWind : Wind -> Random.Generator Wind
+changeWind w =
+    Random.weighted
+        ( 14.0, w )
+        [ ( 3.0, rotWind w )
+        , ( 1.0, rotWind <| rotWind w )
+        , ( 3.0, rotWind <| rotWind <| rotWind w )
+        ]
+
+
 
 ----------------------------------------------------------------
 -- Parsing maps
@@ -759,3 +838,50 @@ decodeMap =
             Json.list decodeTile
     in
     Json.map Dict.fromList pts
+
+
+
+----------------------------------------------------------------
+-- Chosing a random destination
+
+
+excludeWindowAbout : Int -> List Int
+excludeWindowAbout tar =
+    let
+        win =
+            50
+
+        leftRange =
+            List.range 0 (tar - win)
+
+        rightRange =
+            List.range (tar + win) mapSize
+    in
+    List.concat [ leftRange, rightRange ]
+
+
+unifOrZero : List Int -> Random.Generator Int
+unifOrZero opts =
+    case opts of
+        x :: xs ->
+            Random.uniform x xs
+
+        [] ->
+            Random.uniform 0 []
+
+
+newCoordinateFor : Int -> Random.Generator Int
+newCoordinateFor c =
+    unifOrZero <| excludeWindowAbout c
+
+
+newDestinationFor : Point -> Random.Generator Point
+newDestinationFor ( x, y ) =
+    let
+        newX =
+            newCoordinateFor x
+
+        newY =
+            newCoordinateFor y
+    in
+    Random.pair newX newY
