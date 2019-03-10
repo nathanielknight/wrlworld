@@ -25,9 +25,18 @@ main =
         }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( { worldMap = exampleMap
+init : Json.Value -> ( Model, Cmd Msg )
+init v =
+    let
+        map =
+            case Json.decodeValue decodeMap v of
+                Ok m ->
+                    Debug.log "Successfully parsed map" m
+
+                Err e ->
+                    Debug.log (Debug.toString e) exampleMap
+    in
+    ( { worldMap = map
       , wind = { speed = 0, direction = N }
       , vessel =
             { position = ( mapSize // 2, mapSize // 2 )
@@ -596,41 +605,89 @@ directionChanges =
     ]
 
 
+
 ----------------------------------------------------------------
 -- Parsing maps
+
 
 decodePoint : Json.Decoder Point
 decodePoint =
     let
-        x = Json.index 0 Json.int
-        y = Json.index 1 Json.int
-        f a b = (a, b)
+        x =
+            Json.index 0 Json.int
+
+        y =
+            Json.index 1 Json.int
+
+        f a b =
+            ( a, b )
     in
-        Json.map2 f x y
+    Json.map2 f x y
+
 
 decodeTileKind : Json.Decoder TileKind
 decodeTileKind =
     let
-        p s = case s of
-            "sea" -> Sea
-            "land" -> Land
-            "mountain" -> Mountain
-            _ -> Sea  -- default to Sea to avoid nasty error handling code
-    in
-        Json.map p Json.string
+        p s =
+            case s of
+                "sea" ->
+                    Sea
 
-decodeTile : Json.Decoder (Point, TileKind)
+                "land" ->
+                    Land
+
+                "mountain" ->
+                    Mountain
+
+                _ ->
+                    Sea
+
+        -- default to Sea to avoid nasty error handling code
+    in
+    Json.map p Json.string
+
+
+decodeTile : Json.Decoder ( Point, TileKind )
 decodeTile =
     let
-        pt = Json.index 0 decodePoint
-        kind = Json.index 1 decodeTileKind
-        f a b = (a, b)
+        pt =
+            Json.index 0 decodePoint
+
+        kind =
+            Json.index 1 decodeTileKind
+
+        f a b =
+            ( a, b )
     in
-        Json.map2 f pt kind
+    Json.map2 f pt kind
+
 
 decodeMap : Json.Decoder TileMap
 decodeMap =
     let
-        pts = Json.list decodeTile
+        pts =
+            Json.list decodeTile
     in
-        Json.map Dict.fromList pts
+    Json.map Dict.fromList pts
+
+
+decodeFlags : Json.Value -> ( Model, Cmd msg )
+decodeFlags v =
+    let
+        map =
+            case Json.decodeValue decodeMap v of
+                Ok m ->
+                    Debug.log "Successfully parsed map" m
+
+                Err e ->
+                    Debug.log (Debug.toString e) exampleMap
+    in
+    ( { worldMap = map
+      , wind = { speed = 0, direction = N }
+      , vessel =
+            { position = ( mapSize // 2, mapSize // 2 )
+            , mode = Wagon
+            }
+      }
+    , Cmd.none
+    )

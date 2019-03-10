@@ -6,6 +6,7 @@
 </head>
 
 <body>
+    <div id="app"></div>
     <canvas id="testcanvas" width=256 height=256 style="image-rendering: crisp-edges;"></canvas>
     <script src="./perlin.js"></script>
     <script>
@@ -20,8 +21,15 @@
     <script src="./arrayMap2D.js"></script>
     <script src="./noiseMap2D.js"></script>
     <script src="./generator.js"></script>
+    <script src="./app.js"></script>
     <script>
-        testGenerator();
+        let g = new Generator();
+        let a = g.asArray();
+        let e = document.getElementById("app");
+        let app = Elm.Main.init({
+            node: e,
+            flags: a
+        });
     </script>
 
 </html>
