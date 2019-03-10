@@ -569,3 +569,43 @@ directionChanges =
     , ( -1, 0 )
     , ( -1, 1 )
     ]
+
+
+----------------------------------------------------------------
+-- Parsing maps
+
+decodePoint : Json.Decoder Point
+decodePoint =
+    let
+        x = Json.index 0 Json.int
+        y = Json.index 1 Json.int
+        f a b = (a, b)
+    in
+        Json.map2 f x y
+
+decodeTileKind : Json.Decoder TileKind
+decodeTileKind =
+    let
+        p s = case s of
+            "sea" -> Sea
+            "land" -> Land
+            "mountain" -> Mountain
+            _ -> Sea  -- default to Sea to avoid nasty error handling code
+    in
+        Json.map p Json.string
+
+decodeTile : Json.Decoder (Point, TileKind)
+decodeTile =
+    let
+        pt = Json.index 0 decodePoint
+        kind = Json.index 1 decodeTileKind
+        f a b = (a, b)
+    in
+        Json.map2 f pt kind
+
+decodeMap : Json.Decoder TileMap
+decodeMap =
+    let
+        pts = Json.list decodeTile
+    in
+        Json.map Dict.fromList pts
