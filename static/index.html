@@ -4,10 +4,25 @@
 <head>
     <meta charset="utf8" />
     <style>
+        body {
+            background-color: darkslategray;
+            color: lightslategray;
+            margin: auto;
+            max-width: 40em;
+        }
         .app {
             display: flex;
             flex-direction: row;
             flex-wrap: nowrap;
+        }
+        #dashboard {
+            font-family: monospace;
+            padding: 1em;
+        }
+        #map {
+            outline-style:none;
+            box-shadow:none;
+            border-color:transparent;
         }
     </style>
 </head>
@@ -37,6 +52,12 @@
             node: e,
             flags: a
         });
+
+        function focusMap() {
+            let e = document.getElementById("map");
+            e.focus();
+        }
+        setTimeout(focusMap, 400);
     </script>
 
 </html>

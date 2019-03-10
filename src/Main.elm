@@ -106,8 +106,8 @@ view m =
                 |> viewAround m.vessel.position
     in
     div [ Html.Attributes.class "app" ]
-        [ div [ Html.Attributes.class "map", style "font-family" "monospace", keyboardControls, tabindex 0 ] [ renderCells viewCells ]
-        , div [ Html.Attributes.class "dashboard", style "font-famliy" "cursive" ] [ dashboard m ]
+        [ div [ Html.Attributes.id "map", style "font-family" "monospace", keyboardControls, tabindex 0 ] [ renderCells viewCells ]
+        , div [ Html.Attributes.id "dashboard", style "font-famliy" "cursive" ] [ dashboard m ]
         ]
 
 
